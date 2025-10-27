@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Licitaciones Públicas - Blockchain</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <script src="./tender.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Sistema de Licitaciones Públicas</h1>
+            <p>Transparencia y Confianza mediante Blockchain</p>
+        </div>
+
+        <div class="wallet-section">
+            <div class="wallet-info">
+                <h3>💼 Tu Cuenta</h3>
+                <div class="address" id="userAddress">No conectado</div>
+                <div id="userRole"></div>
+            </div>
+            <div>
+                <button class="btn" id="connectWallet" onclick="connectWallet()">
+                    Conectar MetaMask
+                </button>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('tenders')">📋 Ver Licitaciones</div>
+            <div class="tab" onclick="switchTab('create')">➕ Crear Licitación</div>
+            <div class="tab" onclick="switchTab('submit')">📝 Enviar Oferta</div>
+            <div class="tab" onclick="switchTab('evaluate')">⭐ Evaluar Ofertas</div>
+            <div class="tab" onclick="switchTab('manage')">⚙️ Gestionar</div>
+        </div>
+
+    
+        <div id="tenders" class="content-section active">
+            <h2 style="margin-bottom: 20px; color: #667eea;">📋 Licitaciones Activas</h2>
+            <button class="btn btn-success" onclick="loadTenders()">🔄 Actualizar</button>
+            <div id="tendersContainer" class="loading">Cargando licitaciones</div>
+        </div>
+
+        <div id="create" class="content-section">
+            <h2 style="margin-bottom: 20px; color: #667eea;">➕ Crear Nueva Licitación</h2>
+            <div class="form-group">
+                <label>📝 Descripción del Proyecto</label>
+                <textarea id="createDescription" rows="3" placeholder="Ej: Construcción de puente peatonal en Av. Principal"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>💰 Precio Máximo (ETH)</label>
+                    <input type="number" id="createMaxPrice" step="0.01" placeholder="100">
+                </div>
+                <div class="form-group">
+                    <label>📅 Plazo (días)</label>
+                    <input type="number" id="createDeadline" placeholder="30">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>⚖️ Peso Precio (%)</label>
+                    <input type="number" id="createWeightPrice" value="60" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>⭐ Peso Calidad (%)</label>
+                    <input type="number" id="createWeightQuality" value="40" min="0" max="100">
+                </div>
+            </div>
+            <button class="btn" onclick="createTender()">🚀 Crear Licitación</button>
+        </div>
+
+
+        <div id="submit" class="content-section">
+            <h2 style="margin-bottom: 20px; color: #667eea;">📝 Enviar Oferta</h2>
+            <div class="form-group">
+                <label>🔢 ID de Licitación</label>
+                <input type="number" id="offerTenderId" placeholder="1">
+            </div>
+            <div class="form-group">
+                <label>💵 Tu Precio (ETH)</label>
+                <input type="number" id="offerPrice" step="0.01" placeholder="80.5">
+            </div>
+            <div class="form-group">
+                <label>📄 Hash de Documentación (IPFS)</label>
+                <input type="text" id="offerDocHash" placeholder="QmXxxx... (hash de tu documentación en IPFS)">
+            </div>
+            <button class="btn" onclick="submitOffer()">📤 Enviar Oferta</button>
+        </div>
+
+        <div id="evaluate" class="content-section">
+            <h2 style="margin-bottom: 20px; color: #667eea;">⭐ Evaluar Ofertas</h2>
+            <div class="form-group">
+                <label>🔢 ID de Licitación</label>
+                <input type="number" id="evalTenderId" placeholder="1">
+            </div>
+            <button class="btn btn-secondary" onclick="loadOffersForEvaluation()">📋 Cargar Ofertas</button>
+            <div id="evaluationContainer" style="margin-top: 20px;"></div>
+        </div>
+
+        <div id="manage" class="content-section">
+            <h2 style="margin-bottom: 20px; color: #667eea;">⚙️ Gestión de Licitaciones</h2>
+            
+            <div class="tender-card">
+                <h3 style="color: #667eea; margin-bottom: 15px;">🔒 Cerrar Período de Ofertas</h3>
+                <div class="form-group">
+                    <label>ID de Licitación</label>
+                    <input type="number" id="closeTenderId" placeholder="1">
+                </div>
+                <button class="btn" onclick="closeOfferPeriod()">🔒 Cerrar Período</button>
+            </div>
+
+            <div class="tender-card">
+                <h3 style="color: #667eea; margin-bottom: 15px;">✅ Marcar como Evaluada</h3>
+                <div class="form-group">
+                    <label>ID de Licitación</label>
+                    <input type="number" id="markTenderId" placeholder="1">
+                </div>
+                <button class="btn btn-secondary" onclick="markAsEvaluated()">✅ Marcar como Evaluada</button>
+            </div>
+
+            <div class="tender-card">
+                <h3 style="color: #667eea; margin-bottom: 15px;">🏆 Calcular Ganador</h3>
+                <div class="form-group">
+                    <label>ID de Licitación</label>
+                    <input type="number" id="winnerTenderId" placeholder="1">
+                </div>
+                <button class="btn btn-success" onclick="calculateWinner()">🏆 Calcular Ganador</button>
+            </div>
+
+            <div class="tender-card">
+                <h3 style="color: #667eea; margin-bottom: 15px;">👥 Gestionar Evaluadores</h3>
+                <div class="form-group">
+                    <label>Dirección del Evaluador</label>
+                    <input type="text" id="evaluatorAddress" placeholder="0x...">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn" onclick="addEvaluator()">➕ Añadir Evaluador</button>
+                    <button class="btn btn-secondary" onclick="removeEvaluator()">➖ Remover Evaluador</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close-modal" onclick="closeModal()">&times;</span>
+                <h2>Detalles de la Licitación</h2>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const CONTRACT_ADDRESS = '0x096057A16d14FA1e452EE3e16D41100C1982adc6'; 
+
+        let web3;
+        let contract;
+        let userAccount;
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                    userAccount = accounts[0];
+                    web3 = new Web3(window.ethereum);
+                    contract = new web3.eth.Contract(tenderABI, CONTRACT_ADDRESS);
+                    
+                    document.getElementById('userAddress').textContent = userAccount;
+                    document.getElementById('connectWallet').textContent = '✅ Conectado';
+                    document.getElementById('connectWallet').disabled = true;
+                    
+                    await checkUserRole();
+                    loadTenders();
+                    showAlert('¡Conectado exitosamente!', 'success');
+                } catch (error) {
+                    showAlert('Error al conectar: ' + error.message, 'error');
+                }
+            } else {
+                showAlert('Por favor instala MetaMask', 'error');
+            }
+        }
+
+        async function checkUserRole() {
+            try {
+                const owner = await contract.methods.owner().call();
+                const isEvaluator = await contract.methods.evaluators(userAccount).call();
+                
+                let roleHTML = '';
+                if (owner.toLowerCase() === userAccount.toLowerCase()) {
+                    roleHTML = '<span class="role-badge role-owner">👑 Administrador</span>';
+                }
+                if (isEvaluator) {
+                    roleHTML += '<span class="role-badge role-evaluator">⭐ Evaluador</span>';
+                }
+                if (!roleHTML) {
+                    roleHTML = '<span class="role-badge role-provider">🏢 Proveedor</span>';
+                }
+                
+                document.getElementById('userRole').innerHTML = roleHTML;
+            } catch (error) {
+                console.error('Error checking role:', error);
+            }
+        }
+
+        async function loadTenders() {
+            const container = document.getElementById('tendersContainer');
+            container.innerHTML = '<div class="loading">Cargando licitaciones</div>';
+            
+            try {
+                const count = await contract.methods.tenderCount().call();
+                
+                if (count == 0) {
+                    container.innerHTML = '<div class="empty-state"><h3>No hay licitaciones aún</h3><p>Crea la primera licitación</p></div>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                
+                for (let i = 1; i <= count; i++) {
+                    const info = await contract.methods.getTender(i).call();
+                    const {description, maxPrice, deadline, weightPrice, weightQuality, status, winner, participantCount} = info;
+                    console.log('Tender Info:', info);
+                    const statusNames = ['Open', 'Closed', 'Evaluated', 'Finalized'];
+                    const statusClasses = ['status-open', 'status-closed', 'status-evaluated', 'status-finalized'];
+                    const statusEmojis = ['🟢', '🔴', '🟡', '🎉'];
+                    
+                    const deadlineDate = new Date(deadline * 1000);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'tender-card';
+                    card.innerHTML = `
+                        <div class="tender-header">
+                            <span class="tender-id">ID: ${i}</span>
+                            <span class="status-badge ${statusClasses[status]}">${statusEmojis[status]} ${statusNames[status]}</span>
+                        </div>
+                        <div class="tender-info">
+                            <p><strong>📋 Descripción:</strong> ${description}</p>
+                            <p><strong>💰 Precio Máximo:</strong> ${web3.utils.fromWei(maxPrice, 'ether')} ETH</p>
+                            <p><strong>📅 Deadline:</strong> ${deadlineDate.toLocaleString()}</p>
+                            <p><strong>📊 Ofertas:</strong> ${participantCount === undefined ? 0 : participantCount}</p>
+                            ${winner !== '0x0000000000000000000000000000000000000000' ? 
+                                `<p><strong>🏆 Ganador:</strong> <span class="winner-badge">${winner.substring(0,10)}...</span></p>` : ''}
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn small-btn btn-success" onclick="viewDetails(${i})">👁️ Ver Ofertas</button>
+                        </div>
+                    `;
+                    
+                    container.appendChild(card);
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-error">Error al cargar licitaciones: ' + error.message + '</div>';
+            }
+        }
+
+        async function viewDetails(tenderId) {
+            const modal = document.getElementById('detailModal');
+            const body = document.getElementById('modalBody');
+            
+            body.innerHTML = '<div class="loading">Cargando ofertas</div>';
+            modal.classList.add('active');
+            
+            try {
+                const offers = await contract.methods.getOffers(tenderId).call();
+                const {providers, prices, qualityScores, totalScores} = offers;
+                
+                if (providers.length === 0) {
+                    body.innerHTML = '<div class="empty-state"><h3>Sin ofertas</h3><p>Aún no hay ofertas para esta licitación</p></div>';
+                    return;
+                }
+                
+                let tableHTML = `
+                    <table class="offer-table">
+                        <thead>
+                            <tr>
+                                <th>🏢 Proveedor</th>
+                                <th>💰 Precio (ETH)</th>
+                                <th>⭐ Calidad</th>
+                                <th>📊 Score Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for (let i = 0; i < providers.length; i++) {
+                    tableHTML += `
+                        <tr>
+                            <td>${providers[i].substring(0,10)}...</td>
+                            <td>${web3.utils.fromWei(prices[i], 'ether')}</td>
+                            <td>${qualityScores[i]}/100</td>
+                            <td><strong>${totalScores[i]}/100</strong></td>
+                        </tr>
+                    `;
+                }
+                
+                tableHTML += `
+                        </tbody>
+                    </table>
+                `;
+                
+                body.innerHTML = tableHTML;
+            } catch (error) {
+                body.innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+
+        async function createTender() {
+            const description = document.getElementById('createDescription').value;
+            const maxPrice = document.getElementById('createMaxPrice').value;
+            const deadline = document.getElementById('createDeadline').value;
+            const weightPrice = document.getElementById('createWeightPrice').value;
+            const weightQuality = document.getElementById('createWeightQuality').value;
+            
+            if (!description || !maxPrice || !deadline) {
+                showAlert('Por favor completa todos los campos', 'error');
+                return;
+            }
+            
+            if (parseInt(weightPrice) + parseInt(weightQuality) !== 100) {
+                showAlert('Los pesos deben sumar 100%', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Enviando transacción...', 'info');
+                const maxPriceWei = web3.utils.toWei(maxPrice, 'ether');
+                
+                await contract.methods.addTender(
+                    description,
+                    maxPriceWei,
+                    deadline,
+                    weightPrice,
+                    weightQuality
+                ).send({ from: userAccount });
+                
+                showAlert('✅ Licitación creada exitosamente', 'success');
+                document.getElementById('createDescription').value = '';
+                document.getElementById('createMaxPrice').value = '';
+                document.getElementById('createDeadline').value = '';
+                loadTenders();
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function submitOffer() {
+            const tenderId = document.getElementById('offerTenderId').value;
+            const price = document.getElementById('offerPrice').value;
+            const docHash = document.getElementById('offerDocHash').value;
+            
+            if (!tenderId || !price || !docHash) {
+                showAlert('Por favor completa todos los campos', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Enviando oferta...', 'info');
+                const priceWei = web3.utils.toWei(price, 'ether');
+                
+                await contract.methods.submitOffer(
+                    tenderId,
+                    priceWei,
+                    docHash
+                ).send({ from: userAccount });
+                
+                showAlert('✅ Oferta enviada exitosamente', 'success');
+                document.getElementById('offerTenderId').value = '';
+                document.getElementById('offerPrice').value = '';
+                document.getElementById('offerDocHash').value = '';
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadOffersForEvaluation() {
+            const tenderId = document.getElementById('evalTenderId').value;
+            const container = document.getElementById('evaluationContainer');
+            
+            if (!tenderId) {
+                showAlert('Introduce un ID de licitación', 'error');
+                return;
+            }
+            
+            container.innerHTML = '<div class="loading">Cargando ofertas</div>';
+            
+            try {
+                const offers = await contract.methods.getOffers(tenderId).call();
+                console.log('Offers for Evaluation:', offers);
+                const {providers, prices, qualityScores, totalScores} = offers;
+                
+                if (providers.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><h3>Sin ofertas</h3></div>';
+                    return;
+                }
+                
+                container.innerHTML = '<h3 style="margin-bottom: 15px;">Ofertas para Evaluar:</h3>';
+                
+                for (let i = 0; i < providers.length; i++) {
+                    const card = document.createElement('div');
+                    card.className = 'tender-card';
+                    card.innerHTML = `
+                        <p><strong>🏢 Proveedor:</strong> ${providers[i]}</p>
+                        <p><strong>💰 Precio:</strong> ${web3.utils.fromWei(prices[i], 'ether')} ETH</p>
+                        <p><strong>⭐ Calidad Actual:</strong> ${qualityScores[i]}/100 ${qualityScores[i] > 0 ? '✅' : '❌ Pendiente'}</p>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label>Nueva Puntuación de Calidad (0-100)</label>
+                            <input type="number" id="quality_${providers[i]}" min="0" max="100" value="${qualityScores[i]}">
+                        </div>
+                        <button class="btn small-btn" onclick="evaluateSpecificOffer(${tenderId}, '${providers[i]}')">
+                            ⭐ Evaluar
+                        </button>
+                    `;
+                    container.appendChild(card);
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+            }
+        }
+
+        async function evaluateSpecificOffer(tenderId, provider) {
+            const quality = document.getElementById(`quality_${provider}`).value;
+            
+            if (!quality || quality < 0 || quality > 100) {
+                showAlert('La calidad debe estar entre 0 y 100', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Evaluando oferta...', 'info');
+                
+                await contract.methods.evaluateOffer(
+                    tenderId,
+                    provider,
+                    quality
+                ).send({ from: userAccount });
+                
+                showAlert('✅ Oferta evaluada exitosamente', 'success');
+                loadOffersForEvaluation();
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function closeOfferPeriod() {
+            const tenderId = document.getElementById('closeTenderId').value;
+            
+            if (!tenderId) {
+                showAlert('Introduce un ID de licitación', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Cerrando período...', 'info');
+                
+                await contract.methods.closeOfferPeriod(tenderId).send({ from: userAccount });
+                
+                showAlert('✅ Período cerrado exitosamente', 'success');
+                loadTenders();
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function markAsEvaluated() {
+            const tenderId = document.getElementById('markTenderId').value;
+            
+            if (!tenderId) {
+                showAlert('Introduce un ID de licitación', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Verificando evaluaciones...', 'info');
+                
+                await contract.methods.markAsEvaluated(tenderId).send({ from: userAccount });
+                
+                showAlert('✅ Marcada como evaluada exitosamente', 'success');
+                loadTenders();
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function calculateWinner() {
+            const tenderId = document.getElementById('winnerTenderId').value;
+            
+            if (!tenderId) {
+                showAlert('Introduce un ID de licitación', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Calculando ganador...', 'info');
+                
+                await contract.methods.calculateWinner(tenderId).send({ from: userAccount });
+                
+                showAlert('🏆 Ganador calculado exitosamente', 'success');
+                loadTenders();
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+
+        async function addEvaluator() {
+            const address = document.getElementById('evaluatorAddress').value;
+            
+            if (!address || !web3.utils.isAddress(address)) {
+                showAlert('Dirección inválida', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Añadiendo evaluador...', 'info');
+                
+                await contract.methods.addEvaluator(address).send({ from: userAccount });
+                
+                showAlert('✅ Evaluador añadido exitosamente', 'success');
+                document.getElementById('evaluatorAddress').value = '';
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+
+        async function removeEvaluator() {
+            const address = document.getElementById('evaluatorAddress').value;
+            
+            if (!address || !web3.utils.isAddress(address)) {
+                showAlert('Dirección inválida', 'error');
+                return;
+            }
+            
+            try {
+                showAlert('Removiendo evaluador...', 'info');
+                
+                await contract.methods.removeEvaluator(address).send({ from: userAccount });
+                
+                showAlert('✅ Evaluador removido exitosamente', 'success');
+                document.getElementById('evaluatorAddress').value = '';
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+    
+        function switchTab(tabName) {
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(section => section.classList.remove('active'));
+ 
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            container.innerHTML = '';
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        }
+
+
+        if (typeof window.ethereum !== 'undefined') {
+            window.ethereum.on('accountsChanged', function (accounts) {
+                if (accounts.length > 0) {
+                    userAccount = accounts[0];
+                    document.getElementById('userAddress').textContent = userAccount;
+                    checkUserRole();
+                    loadTenders();
+                } else {
+                    document.getElementById('userAddress').textContent = 'No conectado';
+                    document.getElementById('connectWallet').textContent = 'Conectar MetaMask';
+                    document.getElementById('connectWallet').disabled = false;
+                }
+            });
+        }
+
+
+        window.addEventListener('load', async () => {
+            console.log('Window loaded');
+            
+            if (typeof window.ethereum !== 'undefined') {
+                console.log('Ethereum provider detected');
+                const accounts = await ethereum.request({ method: 'eth_accounts' });
+                if (accounts.length > 0) {
+                    connectWallet();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
